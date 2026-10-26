@@ -1,75 +1,42 @@
 /*
  * =============================================================================
- *  CHALLENGE 3 — Add input: the blue USER button   (skill: reading IDR)
+ *  CHALLENGE 3 — SOLUTION
  * =============================================================================
+ *  Wiring: same 4 LEDs as Challenge 1. Button = blue USER button (PC13).
  *
- *  WIRING: same 4 LEDs as Challenge 1 (A0, A1, A2, D12). The button is the
- *          BLUE button on the Nucleo (B1, "USER"). It's on pin PC13. No
- *          extra wiring needed.
- *
- *  IMPORTANT: the button reads 0 when PRESSED and 1 when released.
- *  (It's wired with a pull-up resistor: released = pulled up to 3.3 V = 1,
- *   pressed = connected to ground = 0.)  This is called "active low".
- *
- *  The chase from Challenge 1 is already running in this file.
- *
- *    STEP A:  write button_is_pressed(), then use it to light the onboard
- *             green LED (PA5) while the button is held down.
- *             DONE WHEN: green LED on while held, off when released.
- *
- *    STEP B:  pause the chase while the button is held.
- *             DONE WHEN: holding the button freezes the light.
- *
- *    STEP C:  each PRESS reverses the chase direction (not each 10 ms that
- *             the button happens to be down!)
- *             DONE WHEN: one press = one reversal, every time.
- *
- *    STRETCH — "Stop the light" game: chase runs; press when the light is
- *             on LED 2. Hit = flash all LEDs and speed up. Miss = start over.
- *             Challenge a friend.
+ *  main() does Steps A, B and C.  For the "Stop the light" stretch game,
+ *  change main() to call stop_the_light_game() instead.
  * =============================================================================
  */
 #include "esdc.h"
 
-/* GPIOC registers (these are the Challenge 2 answers for Port C — compare!) */
 #define GPIOC_BASE    0x40020800U
 #define GPIOC_MODER   (*(volatile uint32_t *)(GPIOC_BASE + 0x00U))
 #define GPIOC_IDR     (*(volatile uint32_t *)(GPIOC_BASE + 0x10U))
 
-#define BUTTON_PIN    13U     /* PC13 */
+#define BUTTON_PIN    13U
 
 static const uint32_t LED_PINS[4] = { 0, 1, 4, 6 };
+#define ALL_LEDS  ((1U << 0) | (1U << 1) | (1U << 4) | (1U << 6))
 
 static void setup(void)
 {
-    RCC_AHB1ENR |= (1U << 0);       /* clock on: GPIOA (LEDs)    */
-    RCC_AHB1ENR |= (1U << 2);       /* clock on: GPIOC (button)  */
+    RCC_AHB1ENR |= (1U << 0);
+    RCC_AHB1ENR |= (1U << 2);
 
     for (int i = 0; i < 4; i++) {
         PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
     }
-    PIN_OUTPUT(GPIOA_MODER, 5);         /* onboard green LED */
-    PIN_INPUT(GPIOC_MODER, BUTTON_PIN); /* input is the reset default, but be explicit */
+    PIN_OUTPUT(GPIOA_MODER, 5);
+    PIN_INPUT(GPIOC_MODER, BUTTON_PIN);
 }
 
-/* ---------------------------------------------------------------------------
- *  STEP A — read the button
- *  Return 1 if the button is pressed right now, 0 if not.
- * ------------------------------------------------------------------------ */
+/* Active low: the bit is 0 while the button is held. */
 static int button_is_pressed(void)
 {
-    /* TODO: read bit 13 of GPIOC_IDR.
-     *
-     * Hint 1: TEST a bit with  (REG & (1U << n))  — it's nonzero if the bit is 1.
-     * Hint 2: the button is ACTIVE LOW. Pressed means the bit is 0.
-     * Hint 3: return ((GPIOC_IDR & (1U << BUTTON_PIN)) == 0U); ... try to
-     *         explain to your partner why == 0 is there before using it!
-     */
-    return 0;
+    return ((GPIOC_IDR & (1U << BUTTON_PIN)) == 0U);
 }
 
-/* Turn off the current LED, move one step in `direction` (+1 or -1),
- * wrap around at the ends, and turn on the new LED. (Done for you.) */
 static int chase_step(int position, int direction)
 {
     GPIOA_ODR &= ~(1U << LED_PINS[position]);
@@ -82,47 +49,101 @@ static int chase_step(int position, int direction)
     return position;
 }
 
-int main(void)
-{
-    setup();
+/* ---------------------------------------------------------------------------
+ *  STRETCH: Stop the light
+ *  The light bounces across the 4 LEDs. Press when it's on LED 2 (PA4).
+ *  Hit  -> all LEDs flash, the game gets faster.
+ *  Miss -> onboard LED flashes, speed resets.
+ * ------------------------------------------------------------------------ */
+#define TARGET_LED  2
 
-    int position  = 0;      /* which LED is lit (0-3)                  */
-    int direction = +1;     /* +1 = forward, -1 = backward             */
-    int ticks     = 0;      /* counts 10 ms ticks                      */
-    int was_pressed = 0;    /* button state on the PREVIOUS tick (Step C) */
+static void flash(uint32_t mask, int times)
+{
+    for (int i = 0; i < times; i++) {
+        GPIOA_ODR |= mask;   delay_ms(80);
+        GPIOA_ODR &= ~mask;  delay_ms(80);
+    }
+}
+
+static void stop_the_light_game(void)
+{
+    int position = 0;
+    int direction = +1;
+    int ticks = 0;
+    int ticks_per_step = 20;        /* 20 x 10 ms = 200 ms per step to start */
+    int was_pressed = 0;
 
     GPIOA_ODR |= (1U << LED_PINS[position]);
 
-    /* WHY 10 ms TICKS INSTEAD OF delay_ms(150)?
-     * During delay_ms() the chip does nothing else, so a quick button press
-     * would be missed. Instead we wake up every 10 ms, check the button,
-     * and only move the chase every 15 ticks (15 x 10 ms = 150 ms).     */
     while (1) {
         delay_ms(10);
         ticks++;
 
         int pressed = button_is_pressed();
 
-        /* ---- STEP A ----------------------------------------------------
-         * TODO: if pressed, turn PA5 on. Otherwise turn PA5 off.          */
-
-
-        /* ---- STEP C ----------------------------------------------------
-         * TODO: if the button is pressed NOW but was NOT pressed last tick,
-         *       that's a new press: flip the direction (direction = -direction).
-         *
-         * This "was it different last time?" check is called EDGE DETECTION. */
-
-
-        was_pressed = pressed;
-        (void)was_pressed;   /* silences a warning until you use it in Step C */
-
-        /* ---- STEP B ----------------------------------------------------
-         * TODO: only move the chase when the button is NOT held.
-         *       (Wrap the if-statement below in another check.)            */
-        if (ticks >= 15) {
+        if (pressed && !was_pressed) {               /* new press */
+            GPIOA_ODR &= ~ALL_LEDS;
+            if (position == TARGET_LED) {
+                flash(ALL_LEDS, 3);
+                if (ticks_per_step > 4) { ticks_per_step -= 3; }   /* faster */
+            } else {
+                flash(1U << 5, 3);
+                ticks_per_step = 20;                                /* reset  */
+            }
+            position = 0;
+            direction = +1;
             ticks = 0;
+            GPIOA_ODR |= (1U << LED_PINS[position]);
+        }
+        was_pressed = pressed;
+
+        if (ticks >= ticks_per_step) {
+            ticks = 0;
+            if (position == 3) { direction = -1; }
+            if (position == 0) { direction = +1; }
             position = chase_step(position, direction);
+        }
+    }
+}
+
+int main(void)
+{
+    setup();
+
+    int position  = 0;
+    int direction = +1;
+    int ticks     = 0;
+    int was_pressed = 0;
+
+    GPIOA_ODR |= (1U << LED_PINS[position]);
+
+    (void)stop_the_light_game;   /* swap this in for the stretch game */
+
+    while (1) {
+        delay_ms(10);
+        ticks++;
+
+        int pressed = button_is_pressed();
+
+        /* Step A: mirror the button on the onboard LED */
+        if (pressed) {
+            GPIOA_ODR |=  (1U << 5);
+        } else {
+            GPIOA_ODR &= ~(1U << 5);
+        }
+
+        /* Step C: edge detection -> one press, one reversal */
+        if (pressed && !was_pressed) {
+            direction = -direction;
+        }
+        was_pressed = pressed;
+
+        /* Step B: only advance while the button is NOT held */
+        if (!pressed) {
+            if (ticks >= 15) {
+                ticks = 0;
+                position = chase_step(position, direction);
+            }
         }
     }
 }

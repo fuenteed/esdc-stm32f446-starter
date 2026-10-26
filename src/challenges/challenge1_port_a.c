@@ -1,107 +1,93 @@
 /*
  * =============================================================================
- *  CHALLENGE 1 — Blink several pins on Port A   (skill: bit masking)
+ *  CHALLENGE 1 — SOLUTION
  * =============================================================================
+ *  Wiring: LEDs on A0 (PA0), A1 (PA1), A2 (PA4), D12 (PA6), each through a
+ *  220-330 Ω resistor to GND.
  *
- *  WIRING (4 LEDs on the breadboard):
- *
- *      Nucleo header pin  ->  LED long leg (+)  ...  LED short leg (-)
- *                                                       -> 220-330 Ω resistor -> GND
- *
- *      LED 0:  A0  (= PA0)
- *      LED 1:  A1  (= PA1)
- *      LED 2:  A2  (= PA4)    <- yes, A2 is PA4, not PA2
- *      LED 3:  D12 (= PA6)
- *
- *  The pin setup (clock + output mode) is already done for you below.
- *  Your job is only the ODR register: which bits are 1 and which are 0.
- *
- *  There are three steps. Do them in order: write the code in a step's
- *  function, then change the line in main() to call that step.
- *
- *    STEP A:  turn all 4 LEDs on (and leave them on)
- *             DONE WHEN: all 4 LEDs light up. (If one doesn't, it's wiring!)
- *
- *    STEP B:  blink all 4 together, on 500 ms, off 500 ms
- *             DONE WHEN: all 4 blink in sync.
- *
- *    STEP C:  "chase": light one LED at a time, LED 0 -> 1 -> 2 -> 3, repeat
- *             DONE WHEN: a single light runs across your LEDs.
- *
- *    STRETCH: make the chase bounce back and forth (Knight Rider), or count
- *             0 to 15 in binary on the 4 LEDs.
- *
- *  Cheat sheet is at the top of include/esdc.h.
+ *  Change the call in main() to try each step, including the two stretch
+ *  goals at the bottom (bounce and binary counter).
  * =============================================================================
  */
 #include "esdc.h"
 
-/* Which bit (pin number) each LED is on. LED_PINS[2] is 4 because LED 2 is PA4.
- * Using this array lets you loop over the LEDs: LED_PINS[i]                 */
 static const uint32_t LED_PINS[4] = { 0, 1, 4, 6 };
+
+/* All four LED bits in one mask: 0b0101_0011 */
+#define ALL_LEDS  ((1U << 0) | (1U << 1) | (1U << 4) | (1U << 6))
 
 static void setup(void)
 {
-    RCC_AHB1ENR |= (1U << 0);           /* clock on for GPIOA */
+    RCC_AHB1ENR |= (1U << 0);
 
     for (int i = 0; i < 4; i++) {
         PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
     }
-    PIN_OUTPUT(GPIOA_MODER, 5);         /* onboard green LED too */
+    PIN_OUTPUT(GPIOA_MODER, 5);
 }
 
-/* ---------------------------------------------------------------------------
- *  STEP A — turn all 4 LEDs on
- * ------------------------------------------------------------------------ */
 static void step_a_all_on(void)
 {
-    /* Example: this turns on the onboard LED (PA5).                       */
     GPIOA_ODR |= (1U << 5);
+    GPIOA_ODR |= (1U << 0) | (1U << 1) | (1U << 4) | (1U << 6);
 
-    /* TODO: turn on PA0, PA1, PA4 and PA6 the same way.
-     *
-     * Hint 1: one line per pin works fine.
-     * Hint 2: or do all of them in one line by OR-ing masks together:
-     *         GPIOA_ODR |= (1U << a) | (1U << b) | ...;                   */
-
-
-    while (1) {
-        /* nothing else to do: stay here with the LEDs on */
-    }
+    while (1) { }
 }
 
-/* ---------------------------------------------------------------------------
- *  STEP B — blink all 4 together
- * ------------------------------------------------------------------------ */
 static void step_b_blink_together(void)
 {
     while (1) {
-        /* TODO: flip all 4 LEDs, then wait 500 ms.
-         *
-         * Hint 1: which operator TOGGLES a bit? (see the cheat sheet)
-         * Hint 2: toggle every bit in one statement, then call delay_ms(500).
-         */
-
+        GPIOA_ODR ^= ALL_LEDS;
+        delay_ms(500);
     }
 }
 
-/* ---------------------------------------------------------------------------
- *  STEP C — chase
- * ------------------------------------------------------------------------ */
 static void step_c_chase(void)
 {
     while (1) {
         for (int i = 0; i < 4; i++) {
-            /* TODO:
-             *   1. turn ON the LED on pin LED_PINS[i]
-             *   2. wait a bit (try 150 ms)
-             *   3. turn it OFF
-             *
-             * Hint: (1U << LED_PINS[i]) is the mask for LED number i.
-             *       SET uses |=, CLEAR uses &= ~(...)
-             */
-
+            GPIOA_ODR |=  (1U << LED_PINS[i]);
+            delay_ms(150);
+            GPIOA_ODR &= ~(1U << LED_PINS[i]);
         }
+    }
+}
+
+/* STRETCH 1: bounce 0 1 2 3 2 1 0 1 2 ... */
+static void stretch_bounce(void)
+{
+    int i = 0;
+    int dir = +1;
+
+    while (1) {
+        GPIOA_ODR |=  (1U << LED_PINS[i]);
+        delay_ms(120);
+        GPIOA_ODR &= ~(1U << LED_PINS[i]);
+
+        if (i == 3) { dir = -1; }
+        if (i == 0) { dir = +1; }
+        i += dir;
+    }
+}
+
+/* STRETCH 2: count 0..15 in binary. LED 0 is the lowest bit.
+ * The pins aren't next to each other (0, 1, 4, 6), so we can't just
+ * write `count` into ODR. Instead, check each bit of count and copy it
+ * to the matching pin. */
+static void stretch_binary_counter(void)
+{
+    uint32_t count = 0;
+
+    while (1) {
+        for (int bit = 0; bit < 4; bit++) {
+            if (count & (1U << bit)) {
+                GPIOA_ODR |=  (1U << LED_PINS[bit]);
+            } else {
+                GPIOA_ODR &= ~(1U << LED_PINS[bit]);
+            }
+        }
+        delay_ms(500);
+        count = (count + 1U) % 16U;
     }
 }
 
@@ -109,12 +95,11 @@ int main(void)
 {
     setup();
 
-    /* Change this line to step_b_blink_together(); or step_c_chase();
-     * when you finish each step. */
-    step_a_all_on();
+    step_c_chase();
 
-    /* (never reached: each step loops forever) */
+    (void)step_a_all_on;
     (void)step_b_blink_together;
-    (void)step_c_chase;
+    (void)stretch_bounce;
+    (void)stretch_binary_counter;
     while (1) { }
 }
