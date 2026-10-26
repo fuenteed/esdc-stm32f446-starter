@@ -13,8 +13,9 @@
  *
  *  The chase from Challenge 1 is already running in this file.
  *
- *    STEP A:  write button_is_pressed(), then use it to light the onboard
- *             green LED (PA5) while the button is held down.
+ *    STEP A:  in setup(), make PC13 an input. Then write button_is_pressed()
+ *             and use it to light the onboard green LED (PA5) while the
+ *             button is held down.
  *             DONE WHEN: green LED on while held, off when released.
  *
  *    STEP B:  pause the chase while the button is held.
@@ -45,15 +46,27 @@ static void setup(void)
     RCC_AHB1ENR |= (1U << 0);       /* clock on: GPIOA (LEDs)    */
     RCC_AHB1ENR |= (1U << 2);       /* clock on: GPIOC (button)  */
 
+    /* LEDs + onboard green LED (PA5) as outputs: the Challenge 1 answer. */
     for (int i = 0; i < 4; i++) {
-        PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
+        GPIOA_MODER &= ~(3U << (LED_PINS[i] * 2U));
+        GPIOA_MODER |=  (1U << (LED_PINS[i] * 2U));
     }
-    PIN_OUTPUT(GPIOA_MODER, 5);         /* onboard green LED */
-    PIN_INPUT(GPIOC_MODER, BUTTON_PIN); /* input is the reset default, but be explicit */
+    GPIOA_MODER &= ~(3U << (5U * 2U));
+    GPIOA_MODER |=  (1U << (5U * 2U));
+
+    /* ---- STEP A, part 1 ----------------------------------------------------
+     * TODO: make PC13 (BUTTON_PIN) an input in GPIOC_MODER.
+     *
+     * Hint 1: input is 00. Which ONE of the two output lines above do you
+     *         still need?
+     * Hint 2: pins come out of reset as inputs, so this works even if you
+     *         skip it. Write it anyway: never rely on a default you
+     *         didn't check.                                                 */
+
 }
 
 /* ---------------------------------------------------------------------------
- *  STEP A — read the button
+ *  STEP A, part 2 — read the button
  *  Return 1 if the button is pressed right now, 0 if not.
  * ------------------------------------------------------------------------ */
 static int button_is_pressed(void)

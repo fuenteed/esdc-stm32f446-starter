@@ -90,7 +90,8 @@ static void timer_wait(void)
 int main(void)
 {
     RCC_AHB1ENR |= (1U << 0);
-    PIN_OUTPUT(GPIOA_MODER, 5);
+    GPIOA_MODER &= ~(3U << (5U * 2U));  /* PA5 = output (01) */
+    GPIOA_MODER |=  (1U << (5U * 2U));
 
     timer_init(500);
 

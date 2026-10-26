@@ -14,7 +14,8 @@
 int main(void)
 {
     RCC_AHB1ENR |= (1U << 0);          /* GPIOA clock on      */
-    PIN_OUTPUT(GPIOA_MODER, 5);        /* PA5 = onboard LED   */
+    GPIOA_MODER &= ~(3U << (5U * 2U)); /* PA5 = onboard LED,  */
+    GPIOA_MODER |=  (1U << (5U * 2U)); /* set to output (01)  */
 
     while (1) {
         /* your code here */

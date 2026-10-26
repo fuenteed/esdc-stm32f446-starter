@@ -132,11 +132,11 @@ Full pinout: ST user manual **UM1724** (Nucleo-64 boards), section "Extension co
 esdc-stm32f446-starter/
 ├── platformio.ini            # build settings + one env per challenge
 ├── include/
-│   ├── esdc.h                # include this; cheat sheet, delay_ms(), PIN_OUTPUT()
+│   ├── esdc.h                # include this; cheat sheet, delay_ms()
 │   └── esdc_registers.h      # RCC and GPIOA register addresses, explained
 ├── src/
 │   ├── challenges/           # <- your work goes here
-│   ├── esdc_helpers.c        # delay_ms() using the SysTick timer
+│   ├── esdc_helpers.c        # delay_ms() as a simple busy-wait loop
 │   └── startup_stm32f446.c   # what runs before main() (worth reading later!)
 ├── linker/stm32f446re.ld     # where code and variables go in memory
 └── Makefile                  # optional: build without PlatformIO
@@ -164,7 +164,7 @@ Timer math in Challenge 4 depends on that number.
 
 **It builds and uploads, but my LED stays off**
 1. Is the port's **clock** on? (`RCC_AHB1ENR` bit 0 = A, 1 = B, 2 = C.) This is the #1 cause.
-2. Is the pin set to **output**? (`PIN_OUTPUT(GPIOx_MODER, pin)`)
+2. Is the pin set to **output**? (MODER bits for pin n, at bit 2n, must be `01`: clear with `&= ~(3U << (n * 2U))`, then `|= (1U << (n * 2U))`)
 3. Is the LED **backwards**? Flip it.
 4. Is the LED on the **pin you think**? Check the table above. A2 is PA4!
 5. Are the LED and resistor in the **same breadboard row**, and does the resistor reach **GND**?

@@ -13,14 +13,17 @@
  *      LED 2:  A2  (= PA4)    <- yes, A2 is PA4, not PA2
  *      LED 3:  D12 (= PA6)
  *
- *  The pin setup (clock + output mode) is already done for you below.
- *  Your job is only the ODR register: which bits are 1 and which are 0.
+ *  The clock is turned on for you. Two registers are yours:
+ *    MODER  (is each pin an input or an output?)  — 2 bits per pin
+ *    ODR    (is each output pin on or off?)       — 1 bit per pin
  *
  *  There are three steps. Do them in order: write the code in a step's
  *  function, then change the line in main() to call that step.
  *
- *    STEP A:  turn all 4 LEDs on (and leave them on)
- *             DONE WHEN: all 4 LEDs light up. (If one doesn't, it's wiring!)
+ *    STEP A:  in setup(), make the 4 LED pins outputs; then in
+ *             step_a_all_on(), turn all 4 LEDs on (and leave them on)
+ *             DONE WHEN: all 4 LEDs light up. (If one doesn't, check its
+ *             MODER bits, then the wiring!)
  *
  *    STEP B:  blink all 4 together, on 500 ms, off 500 ms
  *             DONE WHEN: all 4 blink in sync.
@@ -44,14 +47,22 @@ static void setup(void)
 {
     RCC_AHB1ENR |= (1U << 0);           /* clock on for GPIOA */
 
-    for (int i = 0; i < 4; i++) {
-        PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
-    }
-    PIN_OUTPUT(GPIOA_MODER, 5);         /* onboard green LED too */
+    /* Example: make PA5 (the onboard green LED) an output.
+     * Its 2 mode bits start at bit 5*2 = 10. Clear both, then write 01.  */
+    GPIOA_MODER &= ~(3U << (5U * 2U));
+    GPIOA_MODER |=  (1U << (5U * 2U));
+
+    /* ---- STEP A, part 1 ----------------------------------------------------
+     * TODO: make PA0, PA1, PA4 and PA6 outputs the same way.
+     *
+     * Hint 1: copy the two lines above and change the pin number.
+     * Hint 2: or loop over LED_PINS and use (LED_PINS[i] * 2U) as the shift.
+     * Hint 3: "2-BIT FIELDS" in the cheat sheet (include/esdc.h).          */
+
 }
 
 /* ---------------------------------------------------------------------------
- *  STEP A — turn all 4 LEDs on
+ *  STEP A, part 2 — turn all 4 LEDs on
  * ------------------------------------------------------------------------ */
 static void step_a_all_on(void)
 {
@@ -116,5 +127,6 @@ int main(void)
     /* (never reached: each step loops forever) */
     (void)step_b_blink_together;
     (void)step_c_chase;
+    (void)LED_PINS;     /* silences a warning until you use it */
     while (1) { }
 }

@@ -15,7 +15,8 @@
  *  That's on purpose: the compiler error points you at what's left.
  *
  *    STEP A:  fill in the #defines below (base addresses + offsets)
- *    STEP B:  turn on the clocks for GPIOB and GPIOC in main()
+ *    STEP B:  turn on the clocks for GPIOB and GPIOC in main(), then make
+ *             PB5 and PC7 outputs (same MODER shifts as Challenge 1)
  *    STEP C:  make the two LEDs alternate like a railroad crossing:
  *             X on / Y off, wait 400 ms, X off / Y on, wait 400 ms, repeat
  *             DONE WHEN: the two LEDs take turns.
@@ -54,14 +55,18 @@
 
 int main(void)
 {
-    /* ---- STEP B: clocks ---------------------------------------------------
+    /* ---- STEP B, part 1: clocks -------------------------------------------
      * TODO: turn on the clocks for GPIOB and GPIOC in RCC_AHB1ENR.
      * (Challenge 0 turned on GPIOA's clock with  RCC_AHB1ENR |= (1U << 0); ) */
 
 
-    /* Pin modes (done for you, using YOUR registers from above). */
-    PIN_OUTPUT(GPIOB_MODER, 5);
-    PIN_OUTPUT(GPIOC_MODER, 7);
+    /* ---- STEP B, part 2: pin modes ----------------------------------------
+     * TODO: make PB5 an output (in GPIOB_MODER) and PC7 an output
+     *       (in GPIOC_MODER). Same two lines per pin as Challenge 1:
+     *       clear the pin's 2 bits with &= ~(3U << ...), then |= (1U << ...).
+     *
+     * Hint: PC7's bits start at bit 7*2 = 14.                             */
+
 
     while (1) {
         /* ---- STEP C: railroad crossing -------------------------------------
