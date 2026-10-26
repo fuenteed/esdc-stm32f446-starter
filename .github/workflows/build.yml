@@ -1,0 +1,51 @@
+# Builds every challenge on each push, so a broken starter never reaches a meeting.
+# Challenge 2 is skipped while it still contains FILL_ME_IN placeholders
+# (it's meant to fail until students fill it in); on the solutions branch it builds too.
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  platformio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build all challenges
+        run: |
+          envs="-e challenge0 -e challenge1 -e challenge3 -e challenge4 -e playground"
+          if ! grep -q FILL_ME_IN src/challenges/challenge2_other_ports.c; then
+            envs="$envs -e challenge2"
+          fi
+          pio run $envs
+
+  makefile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM GCC
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Build all challenges with make
+        run: |
+          list="0 1 3 4 playground"
+          if ! grep -q FILL_ME_IN src/challenges/challenge2_other_ports.c; then
+            list="$list 2"
+          fi
+          for c in $list; do make CHALLENGE=$c; done

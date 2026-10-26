@@ -1,0 +1,13 @@
+# PlatformIO build output
+.pio/
+
+# Makefile build output
+build/
+
+# VS Code: keep only the "recommended extensions" file
+.vscode/*
+!.vscode/extensions.json
+
+# OS clutter
+.DS_Store
+Thumbs.db
