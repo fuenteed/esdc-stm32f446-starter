@@ -25,10 +25,14 @@ static void setup(void)
     RCC_AHB1ENR |= (1U << 2);
 
     for (int i = 0; i < 4; i++) {
-        PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
+        GPIOA_MODER &= ~(3U << (LED_PINS[i] * 2U));
+        GPIOA_MODER |=  (1U << (LED_PINS[i] * 2U));
     }
-    PIN_OUTPUT(GPIOA_MODER, 5);
-    PIN_INPUT(GPIOC_MODER, BUTTON_PIN);
+    GPIOA_MODER &= ~(3U << (5U * 2U));
+    GPIOA_MODER |=  (1U << (5U * 2U));
+
+    /* Input is 00, so clearing the 2 bits is all it takes. */
+    GPIOC_MODER &= ~(3U << (BUTTON_PIN * 2U));
 }
 
 /* Active low: the bit is 0 while the button is held. */

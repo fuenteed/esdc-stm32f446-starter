@@ -20,10 +20,13 @@ static void setup(void)
 {
     RCC_AHB1ENR |= (1U << 0);
 
+    /* Each pin: clear its 2 MODER bits, then write 01 (output). */
     for (int i = 0; i < 4; i++) {
-        PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
+        GPIOA_MODER &= ~(3U << (LED_PINS[i] * 2U));
+        GPIOA_MODER |=  (1U << (LED_PINS[i] * 2U));
     }
-    PIN_OUTPUT(GPIOA_MODER, 5);
+    GPIOA_MODER &= ~(3U << (5U * 2U));
+    GPIOA_MODER |=  (1U << (5U * 2U));
 }
 
 static void step_a_all_on(void)

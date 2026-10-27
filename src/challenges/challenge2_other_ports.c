@@ -26,8 +26,10 @@ int main(void)
 {
     RCC_AHB1ENR |= (1U << 1) | (1U << 2);     /* GPIOB + GPIOC clocks on */
 
-    PIN_OUTPUT(GPIOB_MODER, 5);
-    PIN_OUTPUT(GPIOC_MODER, 7);
+    GPIOB_MODER &= ~(3U << (5U * 2U));        /* PB5 = output (01) */
+    GPIOB_MODER |=  (1U << (5U * 2U));
+    GPIOC_MODER &= ~(3U << (7U * 2U));        /* PC7 = output (01) */
+    GPIOC_MODER |=  (1U << (7U * 2U));
 
     while (1) {
         GPIOB_ODR |=  (1U << 5);

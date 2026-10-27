@@ -58,7 +58,8 @@ static void reaction_game(void)
 {
     RCC_AHB1ENR |= (1U << 2);                  /* GPIOC clock for the button */
     for (int i = 0; i < 4; i++) {
-        PIN_OUTPUT(GPIOA_MODER, LED_PINS[i]);
+        GPIOA_MODER &= ~(3U << (LED_PINS[i] * 2U));
+        GPIOA_MODER |=  (1U << (LED_PINS[i] * 2U));
     }
 
     /* Free-running 1 ms counter: ARR at max, so CNT = ms since start. */
@@ -102,7 +103,8 @@ static void reaction_game(void)
 int main(void)
 {
     RCC_AHB1ENR |= (1U << 0);
-    PIN_OUTPUT(GPIOA_MODER, 5);
+    GPIOA_MODER &= ~(3U << (5U * 2U));  /* PA5 = output (01) */
+    GPIOA_MODER |=  (1U << (5U * 2U));
 
     (void)reaction_game;   /* swap this in for the stretch */
 
