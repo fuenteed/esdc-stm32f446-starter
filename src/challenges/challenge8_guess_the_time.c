@@ -15,9 +15,15 @@
  *           all 4 flashing = more than 1 s off. Try again!
  *    4. Press to play again.
  *
- *  WIRING: the 4 LEDs from Challenge 1 (A0, A1, A2, D12) + the blue button.
+ *  WIRING: 4 LEDs on A0 (PA0), A1 (PA1), A2 (PA4) and D12 (PA6), each:
  *
- *    STEP 0:  paste your tim1_init() from Challenge 6 below (CNT = ms).
+ *      board pin --> LED long leg (+)   LED short leg (-) --> 220-330 ohm --> GND
+ *
+ *  The button is the BLUE "USER" button already on the Nucleo (PC13).
+ *
+ *  TIM1, the button and the LEDs are all set up for you. millis() tells you
+ *  how many ms have passed. You only write the timing and scoring.
+ *
  *    STEP A:  measure how long the player waited (between the two presses).
  *    STEP B:  turn that into an error ("how far off") and a score (0-4).
  *    DONE WHEN: you can play it. Wait one round with your phone's
@@ -34,7 +40,7 @@
  */
 #include "esdc.h"
 
-/* GPIOC: the blue button (same as Challenge 3) */
+/* GPIOC: the blue button */
 #define GPIOC_BASE    0x40020800U
 #define GPIOC_MODER   (*(volatile uint32_t *)(GPIOC_BASE + 0x00U))
 #define GPIOC_IDR     (*(volatile uint32_t *)(GPIOC_BASE + 0x10U))
@@ -45,31 +51,39 @@
 static const uint32_t LED_PINS[4] = { 0, 1, 4, 6 };
 #define ALL_LEDS  ((1U << 0) | (1U << 1) | (1U << 4) | (1U << 6))
 
-/* ---------------------------------------------------------------------------
- *  STEP 0 — paste your Challenge 6 tim1_init() body here
- *
- *  Until you do, NOTHING works: the timer never moves, so wait_ms() below
- *  waits forever.
- * ------------------------------------------------------------------------ */
-static void tim1_init(void)
-{
-    /* TODO: your Challenge 6 code */
-
-}
-
 /* ===========================================================================
- *  Helpers. All done for you, but read them: they're the Challenge 7 ideas.
+ *  Helpers. All done for you, but read them: they're what makes it work.
  * ======================================================================== */
 
-/* Time in ms since TIM1 started. Wraps every 65.5 s, so always subtract:
- * elapsed = (uint16_t)(now - then). (See Challenge 7 for why that works.) */
+/* TIM1 as a millisecond clock:
+ *     16 MHz / 16000 = 1000 ticks per second  ->  CNT goes up once per ms
+ * It's never reset, so CNT works like a wall clock.                        */
+static void tim1_init(void)
+{
+    RCC_APB2ENR |= (1U << 0);       /* TIM1 clock on (it's on the APB2 bus)  */
+    TIM1_PSC = 16000U - 1U;         /* 16 MHz / 16000 = 1 kHz: 1 tick per ms */
+    TIM1_ARR = 0xFFFFU;             /* count to the 16-bit max, then wrap    */
+    TIM1_EGR = TIM1_EGR_UG;         /* make the new PSC take effect now...   */
+    TIM1_SR &= ~TIM1_SR_UIF;        /* ...and clear the flag that UG sets    */
+    TIM1_CR1 |= TIM1_CR1_CEN;       /* start counting                        */
+}
+
+/* "What time is it?" in ms. CNT is 16 bits, so this clock wraps from 65535
+ * back to 0 about once a minute. That's fine as long as you SUBTRACT:
+ *
+ *     elapsed = (uint16_t)(now - then);
+ *
+ * Example across the wrap:  then = 65500, now = 36  (the clock wrapped)
+ *     36 - 65500 = -65464 ... cast to uint16_t ... = 72 ms.  Correct!
+ * The cast matters: C does uint16_t math as int, and the cast squeezes the
+ * answer back into 16 bits.                                               */
 static uint16_t millis(void)
 {
     return (uint16_t)TIM1_CNT;
 }
 
-/* A delay that does NOT reset CNT. (Challenge 6's delay set CNT = 0, which
- * would break millis().) It just watches the clock go by.                 */
+/* Wait `ms` milliseconds WITHOUT resetting CNT (resetting it would break
+ * millis()). It just watches the clock go by.                             */
 static void wait_ms(uint16_t ms)
 {
     uint16_t start = millis();

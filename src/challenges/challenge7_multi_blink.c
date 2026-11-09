@@ -17,7 +17,11 @@
  *
  *  This is how real firmware does many things "at the same time".
  *
- *  WIRING: the 4 LEDs from Challenge 1 (A0, A1, A2, D12) + the blue button.
+ *  WIRING: 4 LEDs, each wired the same way:
+ *
+ *      board pin --> LED long leg (+)   LED short leg (-) --> 220-330 ohm --> GND
+ *
+ *  The button is the BLUE "USER" button already on the Nucleo (PC13).
  *
  *      LED       board pin   blink every
  *      LED 0     A0  (PA0)   100 ms
@@ -25,7 +29,9 @@
  *      LED 2     A2  (PA4)   500 ms
  *      LED 3     D12 (PA6)   1000 ms
  *
- *    STEP 0:  paste your tim1_init() from Challenge 6 below (CNT = ms).
+ *  TIM1 is already set up for you as a millisecond clock: millis() tells
+ *  you how many ms have passed. You only write the blinking logic.
+ *
  *    STEP A:  blink LED 0 every 100 ms with millis(), no delay at all.
  *             DONE WHEN: LED 0 blinks fast and steady.
  *    STEP B:  use the arrays to blink all 4 LEDs at their own rates.
@@ -35,14 +41,17 @@
  *             DONE WHEN: PA5 reacts instantly, even while LED 3 is in the
  *             middle of its long 1 s wait. Try that with delay_ms()!
  *
- *    STRETCH — speed control: every button PRESS (not hold: see Challenge
- *             3 Step C) halves all 4 periods. Below 25 ms, go back to normal.
- *             (You'll need to remove the `const` from PERIOD_MS first.)
+ *    STRETCH — speed control: every button PRESS halves all 4 periods.
+ *             Below 25 ms, go back to normal.
+ *             - A PRESS is "pressed now, but NOT pressed last time around
+ *               the loop" (edge detection). Keep the last reading in a
+ *               variable like  int was_pressed = 0;
+ *             - Remove the `const` from PERIOD_MS so you can change it.
  * =============================================================================
  */
 #include "esdc.h"
 
-/* GPIOC: the blue button (same as Challenge 3) */
+/* GPIOC: the blue button */
 #define GPIOC_BASE    0x40020800U
 #define GPIOC_MODER   (*(volatile uint32_t *)(GPIOC_BASE + 0x00U))
 #define GPIOC_IDR     (*(volatile uint32_t *)(GPIOC_BASE + 0x10U))
@@ -52,13 +61,20 @@ static const uint32_t LED_PINS[4]  = {   0,   1,   4,    6 };
 static const uint16_t PERIOD_MS[4] = { 100, 250, 500, 1000 };
 
 /* ---------------------------------------------------------------------------
- *  STEP 0 — paste your Challenge 6 tim1_init() body here
- *           (PSC so CNT ticks every ms, ARR = 0xFFFF, UG, clear UIF, CEN)
+ *  TIM1 as a millisecond clock.  (Done for you.)
+ *
+ *      16 MHz / 16000 = 1000 ticks per second  ->  CNT goes up once per ms
+ *
+ *  It's never reset, so CNT works like a wall clock.
  * ------------------------------------------------------------------------ */
 static void tim1_init(void)
 {
-    /* TODO: your Challenge 6 code */
-
+    RCC_APB2ENR |= (1U << 0);       /* TIM1 clock on (it's on the APB2 bus)  */
+    TIM1_PSC = 16000U - 1U;         /* 16 MHz / 16000 = 1 kHz: 1 tick per ms */
+    TIM1_ARR = 0xFFFFU;             /* count to the 16-bit max, then wrap    */
+    TIM1_EGR = TIM1_EGR_UG;         /* make the new PSC take effect now...   */
+    TIM1_SR &= ~TIM1_SR_UIF;        /* ...and clear the flag that UG sets    */
+    TIM1_CR1 |= TIM1_CR1_CEN;       /* start counting                        */
 }
 
 /* ---------------------------------------------------------------------------
