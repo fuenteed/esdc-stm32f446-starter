@@ -1,80 +1,33 @@
 /*
  * =============================================================================
- *  CHALLENGE 7 (STRETCH) — Four blink rates at once    (Meeting 4: Timers)
+ *  CHALLENGE 7 — SOLUTION   (four blink rates at once, no delays)
  * =============================================================================
- *
- *  Try this with delay_ms(): blink one LED every 100 ms and another every
- *  1000 ms. You can't. While the code waits 1000 ms, nothing else happens.
- *
- *  The trick: NEVER wait. Let TIM1 run as a clock that never gets reset
- *  (like a wall clock), and keep asking "has it been long enough since I
- *  last toggled this LED?"
- *
- *      now = millis();
- *      if (now - last_toggle >= 100)   ->  toggle the LED, remember when
- *      ...check the next LED...        ->  the loop runs thousands of
- *                                          times per second, never stuck
- *
- *  This is how real firmware does many things "at the same time".
- *
- *  WIRING: the 4 LEDs from Challenge 1 (A0, A1, A2, D12) + the blue button.
- *
- *      LED       board pin   blink every
- *      LED 0     A0  (PA0)   100 ms
- *      LED 1     A1  (PA1)   250 ms
- *      LED 2     A2  (PA4)   500 ms
- *      LED 3     D12 (PA6)   1000 ms
- *
- *    STEP 0:  paste your tim1_init() from Challenge 6 below (CNT = ms).
- *    STEP A:  blink LED 0 every 100 ms with millis(), no delay at all.
- *             DONE WHEN: LED 0 blinks fast and steady.
- *    STEP B:  use the arrays to blink all 4 LEDs at their own rates.
- *             DONE WHEN: all 4 blink at once. LED 3 and LED 2 should flip
- *             together every second, because 1000 = 2 x 500.
- *    STEP C:  light PA5 (green) while the button is held.
- *             DONE WHEN: PA5 reacts instantly, even while LED 3 is in the
- *             middle of its long 1 s wait. Try that with delay_ms()!
- *
- *    STRETCH — speed control: every button PRESS (not hold: see Challenge
- *             3 Step C) halves all 4 periods. Below 25 ms, go back to normal.
- *             (You'll need to remove the `const` from PERIOD_MS first.)
+ *  Steps A-C plus the stretch: each button PRESS halves every period;
+ *  once LED 0 would drop below 25 ms, they all reset to normal.
+ *  PA5 is on while the button is held (Step C), with no lag.
  * =============================================================================
  */
 #include "esdc.h"
 
-/* GPIOC: the blue button (same as Challenge 3) */
 #define GPIOC_BASE    0x40020800U
 #define GPIOC_MODER   (*(volatile uint32_t *)(GPIOC_BASE + 0x00U))
 #define GPIOC_IDR     (*(volatile uint32_t *)(GPIOC_BASE + 0x10U))
 #define BUTTON_PIN    13U
 
-static const uint32_t LED_PINS[4]  = {   0,   1,   4,    6 };
-static const uint16_t PERIOD_MS[4] = { 100, 250, 500, 1000 };
+static const uint32_t LED_PINS[4]       = {   0,   1,   4,    6 };
+static const uint16_t NORMAL_PERIOD[4]  = { 100, 250, 500, 1000 };
+static uint16_t       PERIOD_MS[4]      = { 100, 250, 500, 1000 };   /* stretch: not const */
 
-/* ---------------------------------------------------------------------------
- *  STEP 0 — paste your Challenge 6 tim1_init() body here
- *           (PSC so CNT ticks every ms, ARR = 0xFFFF, UG, clear UIF, CEN)
- * ------------------------------------------------------------------------ */
 static void tim1_init(void)
 {
-    /* TODO: your Challenge 6 code */
-
+    RCC_APB2ENR |= (1U << 0);
+    TIM1_PSC = 16000U - 1U;             /* CNT = ms */
+    TIM1_ARR = 0xFFFFU;
+    TIM1_EGR = TIM1_EGR_UG;
+    TIM1_SR &= ~TIM1_SR_UIF;
+    TIM1_CR1 |= TIM1_CR1_CEN;
 }
 
-/* ---------------------------------------------------------------------------
- *  millis(): "what time is it?" in ms.  (Done for you.)
- *
- *  CNT is 16 bits, so this clock wraps from 65535 back to 0 about once a
- *  minute. That's fine as long as you always SUBTRACT times:
- *
- *      elapsed = (uint16_t)(now - then);
- *
- *  Example across the wrap:  then = 65500, now = 36  (the clock wrapped)
- *      36 - 65500 = -65464 ... cast to uint16_t ... = 72 ms.  Correct!
- *
- *  The (uint16_t) cast matters: C turns uint16_t math into int math, and
- *  the cast squeezes the answer back into 16 bits.
- * ------------------------------------------------------------------------ */
 static uint16_t millis(void)
 {
     return (uint16_t)TIM1_CNT;
@@ -82,21 +35,21 @@ static uint16_t millis(void)
 
 static int button_is_pressed(void)
 {
-    return ((GPIOC_IDR & (1U << BUTTON_PIN)) == 0U);   /* active low */
+    return ((GPIOC_IDR & (1U << BUTTON_PIN)) == 0U);
 }
 
 static void setup(void)
 {
-    RCC_AHB1ENR |= (1U << 0);       /* GPIOA clock (LEDs)   */
-    RCC_AHB1ENR |= (1U << 2);       /* GPIOC clock (button) */
+    RCC_AHB1ENR |= (1U << 0);
+    RCC_AHB1ENR |= (1U << 2);
 
-    for (int i = 0; i < 4; i++) {   /* 4 LEDs = outputs     */
+    for (int i = 0; i < 4; i++) {
         GPIOA_MODER &= ~(3U << (LED_PINS[i] * 2U));
         GPIOA_MODER |=  (1U << (LED_PINS[i] * 2U));
     }
-    GPIOA_MODER &= ~(3U << (5U * 2U));          /* PA5 = output */
+    GPIOA_MODER &= ~(3U << (5U * 2U));
     GPIOA_MODER |=  (1U << (5U * 2U));
-    GPIOC_MODER &= ~(3U << (BUTTON_PIN * 2U));  /* PC13 = input */
+    GPIOC_MODER &= ~(3U << (BUTTON_PIN * 2U));
 
     tim1_init();
 }
@@ -105,41 +58,43 @@ int main(void)
 {
     setup();
 
-    /* When each LED was last toggled. Start them all at "now". */
     uint16_t last_toggle[4];
     for (int i = 0; i < 4; i++) {
         last_toggle[i] = millis();
     }
 
+    int      was_pressed   = 0;
+    uint16_t last_press_ms = millis();
+
     while (1) {
         uint16_t now = millis();
 
-        /* ---- STEP A --------------------------------------------------------
-         * TODO: if at least PERIOD_MS[0] ms have passed since last_toggle[0]:
-         *           toggle LED 0 (pin LED_PINS[0])
-         *           move last_toggle[0] forward by PERIOD_MS[0]
-         *
-         * Hint 1: "ms passed since last_toggle[0]" is
-         *             (uint16_t)(now - last_toggle[0])
-         * Hint 2: why  last_toggle[0] += PERIOD_MS[0];  and not
-         *              last_toggle[0] = now;  ?
-         *         If the check runs 1 ms late, "= now" makes every blink
-         *         after it 1 ms late too, and the errors add up (drift).
-         *         "+= period" keeps the blinks on a perfect 100 ms grid.
-         */
+        /* Steps A + B: each LED on its own schedule. */
+        for (int i = 0; i < 4; i++) {
+            if ((uint16_t)(now - last_toggle[i]) >= PERIOD_MS[i]) {
+                GPIOA_ODR ^= (1U << LED_PINS[i]);
+                last_toggle[i] += PERIOD_MS[i];     /* no drift */
+            }
+        }
 
+        /* Step C: instant response. */
+        int pressed = button_is_pressed();
+        if (pressed) {
+            GPIOA_ODR |=  (1U << 5);
+        } else {
+            GPIOA_ODR &= ~(1U << 5);
+        }
 
-        /* ---- STEP B --------------------------------------------------------
-         * TODO: turn Step A into a for loop over all 4 LEDs (i = 0..3).
-         *       Replace every [0] with [i]. Then delete Step A.
-         */
-
-
-        /* ---- STEP C --------------------------------------------------------
-         * TODO: if button_is_pressed(), turn PA5 on. Otherwise turn it off.
-         */
-
-        /* Silence "unused" warnings until you use these. Delete when done. */
-        (void)now; (void)last_toggle; (void)PERIOD_MS; (void)button_is_pressed;
+        /* Stretch: new press (edge) -> halve all periods. The 20 ms
+         * lockout ignores contact bounce without ever blocking.        */
+        if (pressed && !was_pressed && (uint16_t)(now - last_press_ms) > 20U) {
+            last_press_ms = now;
+            int reset = (PERIOD_MS[0] / 2U) < 25U;
+            for (int i = 0; i < 4; i++) {
+                PERIOD_MS[i] = reset ? NORMAL_PERIOD[i] : (uint16_t)(PERIOD_MS[i] / 2U);
+                last_toggle[i] = now;               /* restart the grid */
+            }
+        }
+        was_pressed = pressed;
     }
 }
