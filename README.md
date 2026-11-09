@@ -93,14 +93,15 @@ and has hints you can read one at a time if you're stuck.
 
 Slides: [`slides/meeting4_clocks_and_timers.pdf`](slides/meeting4_clocks_and_timers.pdf).
 The hands-on goal is an **accurate `delay_ms()` using TIM1**. Challenges 5 and 6 are the two ways
-the slides describe it; 7 and 8 are stretch challenges that build on 6.
+the slides describe it; 7 and 8 are stretch challenges. Each one stands on its own: open the
+file and start, nothing to copy from an earlier challenge.
 
 | # | File (in `src/challenges/`) | You'll learn | Wiring |
 |---|---|---|---|
 | 5 | `challenge5_tim1_overflow.c` | **Way #1:** overflow every 1 ms, count the overflows (PSC, ARR, UIF) | None (onboard LED) |
 | 6 | `challenge6_tim1_counter.c` | **Way #2:** prescaler ticks once per ms, wait for CNT to reach the delay | None (onboard LED) |
-| 7 | `challenge7_multi_blink.c` | **Stretch:** 4 LEDs blinking at 4 rates at once, with no delays | 4 LEDs + blue button |
-| 8 | `challenge8_guess_the_time.c` | **Stretch game:** press, count 5 s in your head, press again. How close? | 4 LEDs + blue button |
+| 7 | `challenge7_multi_blink.c` | **Stretch:** 4 LEDs blinking at 4 rates at once, with no delays | 4 LEDs (A0, A1, A2, D12) + blue button |
+| 8 | `challenge8_guess_the_time.c` | **Stretch game:** press, count 5 s in your head, press again. How close? | 4 LEDs (A0, A1, A2, D12) + blue button |
 
 All the TIM1 registers are already defined in `include/esdc_registers.h`.
 
