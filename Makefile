@@ -10,7 +10,7 @@
 #    make CHALLENGE=1 flash   # build + flash with OpenOCD
 #    make clean
 #
-#  CHALLENGE can be 0, 1, 2, 3, 4 or playground.
+#  CHALLENGE can be 0 to 8, or playground.
 # =============================================================================
 
 CHALLENGE ?= 0
@@ -28,7 +28,7 @@ else
 endif
 
 ifeq ($(CHALLENGE_SRC),)
-  $(error No file for CHALLENGE=$(CHALLENGE). Use 0, 1, 2, 3, 4 or playground)
+  $(error No file for CHALLENGE=$(CHALLENGE). Use 0 to 8, or playground)
 endif
 
 SRCS = src/startup_stm32f446.c src/esdc_helpers.c $(CHALLENGE_SRC)

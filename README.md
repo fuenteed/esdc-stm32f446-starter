@@ -24,6 +24,19 @@ Works the same on **Windows, macOS and Linux**.
 
 The first build downloads the ARM compiler and takes a few minutes. After that it takes seconds.
 
+### Already cloned it? Get this week's challenges
+
+New challenges get added before each meeting. Grab them with:
+
+```bash
+git pull
+```
+
+(In VS Code: **Source Control** tab → **⋯** menu → **Pull**.)
+Your work in the older challenge files is kept. If git says your local changes would be
+overwritten, run `git stash`, then `git pull`, then `git stash pop`.
+Downloaded the ZIP instead? Download it again and copy your challenge files over.
+
 ---
 
 ## 1. Install the tools
@@ -76,6 +89,43 @@ and has hints you can read one at a time if you're stuck.
 | 4 | `challenge4_timer.c` | **Stretch:** a real hardware timer (TIM2) | None (onboard LED) |
 | — | `playground.c` | Anything you want | Your call |
 
+### Meeting 4: Clocks and timers (TIM1)
+
+Slides: [`slides/meeting4_clocks_and_timers.pdf`](slides/meeting4_clocks_and_timers.pdf).
+The hands-on goal is an **accurate `delay_ms()` using TIM1**. Challenges 5 and 6 are the two ways
+the slides describe it; 7 and 8 are stretch challenges that build on 6.
+
+| # | File (in `src/challenges/`) | You'll learn | Wiring |
+|---|---|---|---|
+| 5 | `challenge5_tim1_overflow.c` | **Way #1:** overflow every 1 ms, count the overflows (PSC, ARR, UIF) | None (onboard LED) |
+| 6 | `challenge6_tim1_counter.c` | **Way #2:** prescaler ticks once per ms, wait for CNT to reach the delay | None (onboard LED) |
+| 7 | `challenge7_multi_blink.c` | **Stretch:** 4 LEDs blinking at 4 rates at once, with no delays | 4 LEDs + blue button |
+| 8 | `challenge8_guess_the_time.c` | **Stretch game:** press, count 5 s in your head, press again. How close? | 4 LEDs + blue button |
+
+All the TIM1 registers are already defined in `include/esdc_registers.h`.
+
+### Timer cheat sheet
+
+```
+16 MHz --> [ PSC ] --> tick --> [ CNT: 0, 1, 2 ... ARR ] --> overflow: CNT = 0, UIF = 1
+           divide by PSC + 1
+
+tick rate  = 16,000,000 / (PSC + 1)          PSC = 16 - 1     -> 1 tick per us
+overflow   = every (ARR + 1) ticks            PSC = 16000 - 1  -> 1 tick per ms
+```
+
+```c
+RCC_APB2ENR |= (1U << 0);         // DON'T FORGET: TIM1's clock on (it's on APB2, not AHB1)
+TIM1_PSC = 16000 - 1;             // tick rate
+TIM1_ARR = 0xFFFF;                // count up to this (TIM1 is 16-bit: 65,535 max)
+TIM1_EGR = TIM1_EGR_UG;           // GOTCHA: makes the new PSC take effect now...
+TIM1_SR &= ~TIM1_SR_UIF;          // ...and clear the UIF flag that UG just set
+TIM1_CR1 |= TIM1_CR1_CEN;         // go
+
+while ((TIM1_SR & TIM1_SR_UIF) == 0U) { }   // wait for an overflow
+TIM1_SR &= ~TIM1_SR_UIF;                    // clear it, or the next wait ends instantly
+```
+
 > **Challenge 2 won't compile until you fill in the blanks.** That's on purpose. The error
 > message (`'FILL_ME_IN_...' undeclared`) tells you what's left to find.
 
@@ -110,14 +160,14 @@ The Nucleo's headers are labelled like an Arduino (A0, D12...). Here's what thos
 
 | Board label | STM32 pin | Used in |
 |---|---|---|
-| A0 | PA0 | Challenges 1, 3 |
-| A1 | PA1 | Challenges 1, 3 |
-| A2 | **PA4** (not PA2!) | Challenges 1, 3 |
-| D12 | PA6 | Challenges 1, 3 |
+| A0 | PA0 | Challenges 1, 3, 7, 8 |
+| A1 | PA1 | Challenges 1, 3, 7, 8 |
+| A2 | **PA4** (not PA2!) | Challenges 1, 3, 7, 8 |
+| D12 | PA6 | Challenges 1, 3, 7, 8 |
 | D4 | PB5 | Challenge 2 |
 | D9 | PC7 | Challenge 2 |
 | D13 / green LED LD2 | PA5 | Everything |
-| Blue USER button B1 | PC13 (reads 0 when pressed) | Challenges 3, 4 |
+| Blue USER button B1 | PC13 (reads 0 when pressed) | Challenges 3, 4, 7, 8 |
 
 **Avoid these pins:** PA2/PA3 (D1/D0, used by the USB serial port), PA13/PA14 (debugger),
 PC14/PC15 and PH0/PH1 (crystal oscillators).
@@ -133,11 +183,12 @@ esdc-stm32f446-starter/
 ├── platformio.ini            # build settings + one env per challenge
 ├── include/
 │   ├── esdc.h                # include this; cheat sheet, delay_ms()
-│   └── esdc_registers.h      # RCC and GPIOA register addresses, explained
+│   └── esdc_registers.h      # RCC, GPIOA and TIM1 register addresses, explained
 ├── src/
 │   ├── challenges/           # <- your work goes here
 │   ├── esdc_helpers.c        # delay_ms() as a simple busy-wait loop
 │   └── startup_stm32f446.c   # what runs before main() (worth reading later!)
+├── slides/                   # meeting slide decks (PDF)
 ├── linker/stm32f446re.ld     # where code and variables go in memory
 └── Makefile                  # optional: build without PlatformIO
 ```
@@ -146,7 +197,8 @@ There's no hidden framework. When the board powers on, it runs `Reset_Handler()`
 `startup_stm32f446.c`, which sets up memory and calls your `main()`. That's the whole chain.
 
 The chip runs on its internal **16 MHz** clock the whole time (we never change it).
-Timer math in Challenge 4 depends on that number.
+Timer math in Challenges 4–8 depends on that number. (APB2, the bus TIM1 is on, also runs at
+16 MHz because we never turn on its divider.)
 
 ---
 
@@ -179,6 +231,15 @@ Expected. Replace every `FILL_ME_IN` with the number from the reference manual.
 Missed: you're checking the button only between long `delay_ms()` calls. Check it every 10 ms.
 Counted twice: you're reacting to "is pressed" instead of "just got pressed" (edge detection, Step C).
 
+**My timer delay never ends / LED never changes** (Challenges 5–8)
+1. Did you turn on TIM1's clock? It's `RCC_APB2ENR` bit 0, not `AHB1ENR`.
+2. Did you set `CEN` in `TIM1_CR1`? A timer that isn't enabled never counts.
+3. Challenge 6: asking for more than 65,535 ms? A 16-bit `CNT` can never get there.
+
+**My timer delay is way too short** (Challenges 5–8)
+1. Forgot to clear `UIF` after waiting? Then it's still 1 and the next wait ends instantly.
+2. Forgot the `UG` write after setting `PSC`? The first lap runs at full speed (16 MHz).
+
 **"Error: init mode failed" or the board seems stuck**
 Hold the black **RESET** button, click Upload, and let go of RESET when the upload starts.
 
@@ -202,6 +263,8 @@ All free from st.com (search the code):
 
 - **Solutions** live on the `solutions` branch: `git checkout solutions`.
   Challenge 3's solution includes the "Stop the light" game, and Challenge 4's includes the reaction timer.
+  Challenges 5–8 solutions include each stretch (`tim1_delay_us()`, long delays, speed control,
+  random target).
 - **No PlatformIO?** If you have `arm-none-eabi-gcc` and OpenOCD installed:
   `make CHALLENGE=1` builds, `make CHALLENGE=1 flash` uploads.
 - Every push is build-checked by GitHub Actions (see the **Actions** tab).
