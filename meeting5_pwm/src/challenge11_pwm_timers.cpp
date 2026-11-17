@@ -1,94 +1,48 @@
 /*
  * =============================================================================
- *  CHALLENGE 11 — Who owns the frequency?                 (Meeting 5: PWM)
+ *  CHALLENGE 11 — SOLUTION   (Who owns the frequency?)
  * =============================================================================
+ *  Steps A + C, plus the THINK answer in a comment.
  *
- *  analogWrite() doesn't make the signal itself. A hardware TIMER does:
+ *  Step B (the prediction): analogWriteFrequency(10); analogWrite(A1, 51)
+ *  sets the frequency of TIM2, and A0 is on TIM2 too, so A0 jumps from 1 Hz
+ *  to 10 Hz. D12 is on TIM3, a different timer, so it keeps blinking at 4 Hz.
+ *  Rule: one frequency per TIMER, one duty per CHANNEL.
+ *  (A0's on-time may look different too. The core changes the timer's period
+ *  but does not rescale the other channel's compare value, so if you ever see
+ *  A0's brightness shift after changing the frequency, rewrite its value with
+ *  analogWrite after the change.)
  *
- *      ONE counter lap time   ->  ONE frequency for the whole timer
- *      several CHANNELS       ->  each channel has its OWN duty cycle
+ *  THINK answer: 2 with these three pins: TIM2 (A0 + A1) and TIM3 (D12).
+ *  More PWM pins on other timers (for example D10 is on TIM4) would allow more.
  *
- *  Two pins on the same timer must share a frequency. Two pins on different
- *  timers can run at completely different speeds. In this board:
- *
- *      A0  and  A1   are on the SAME timer (TIM2)
- *      D12           is on a different timer (TIM3)
- *
- *  (The pin table is in README.md in this folder.)
- *
- *  Here's the Arduino catch: analogWriteFrequency(hz) is ONE global setting,
- *  and every analogWrite(pin, value) applies the CURRENT setting to that pin's
- *  timer. So "which frequency does a pin get?" depends on what you called
- *  analogWriteFrequency with just before you last called analogWrite on it
- *  (or on any other pin of the same timer).
- *
- *  We'll use slow frequencies (1 to 10 Hz) so you can SEE each cycle as a
- *  blink. At this speed PWM is just blinking with a duty cycle.
- *
- *  WIRING: LEDs on A0, A1 and D12, the same as before:
- *
- *      pin --> LED long leg (+)   LED short leg (-) --> 220-330 ohm --> GND
- *
- *    STEP A:  two independent rates. Make A0 blink at 1 Hz with 50 % duty
- *             (value 128), and D12 at 4 Hz with 50 % duty. Do it by setting
- *             the frequency, writing that pin, then setting the next one.
- *             DONE WHEN: D12 blinks 4 times for every blink of A0 and they
- *             never drift apart.
- *             Watch out: do all of this in setup(), once. If you call
- *             analogWrite(A0, ...) again in loop(), A0 gets whatever the
- *             frequency is set to at THAT moment.
- *
- *    STEP B:  PREDICT, then test. Add A1 at 10 Hz with a low duty (value 51,
- *             which is 20 %). Before you upload, write in the comment below
- *             what you think A0 will do now. Then upload.
- *             DONE WHEN: you can explain (in that comment) why A0 changed, and
- *             why D12 did not. Hint: which pins share a timer?
- *
- *    STEP C:  same frequency, different duty. Make A0 and A1 both run at 1 Hz,
- *             but A0 at 50 % and A1 at 10 %. Drop Step B's 10 Hz.
- *             DONE WHEN: both start each second together, but A1 gives a short
- *             flash and A0 stays on much longer. (This is the "frequency
- *             belongs to the timer, duty belongs to the channel" idea.)
- *
- *    THINK:   we have three PWM pins here (A0, A1, D12). What's the largest
- *             number of DIFFERENT frequencies you can have running at once?
- *
- *    BONUS:   put an LED on A2 and try analogWrite(A2, 128). A2 is a DAC pin,
- *             not a PWM pin: it outputs a steady voltage. What do you see
- *             compared to the PWM LEDs, and why? (Hint: an LED needs about
- *             2 V before it lights at all.)
+ *  BONUS answer: A2 (PA4) is wired to the chip's DAC, so analogWrite(A2, 128)
+ *  outputs a steady voltage (about half of 3.3 V) instead of PWM. The LED
+ *  looks dark or dim, with no flicker at any speed: an LED needs roughly
+ *  2 V to start glowing, so half the supply is barely enough, and below
+ *  that nothing lights. PWM LEDs don't have this problem because the
+ *  pin is always either 0 V or the full 3.3 V.
  * =============================================================================
  */
 #include <Arduino.h>
 
 void setup()
 {
-    /* STEP A ----------------------------------------------------------------
-     * TODO: analogWriteFrequency(1);  analogWrite(A0, 128);
-     * TODO: analogWriteFrequency(4);  analogWrite(D12, 128);               */
+    /* Step A: A0 at 1 Hz, D12 at 4 Hz, 50 % each. */
+    analogWriteFrequency(1);
+    analogWrite(A0, 128);
 
+    analogWriteFrequency(4);
+    analogWrite(D12, 128);
 
-
-    /* STEP B ----------------------------------------------------------------
-     * My prediction for what happens to A0:
-     *
-     *
-     * TODO: analogWriteFrequency(10);  analogWrite(A1, 51);
-     * What actually happened, and why:
-     *
-     *
-     * (When you're done with Step B, delete or comment out its lines.)      */
-
-
-
-    /* STEP C ----------------------------------------------------------------
-     * TODO: A0 and A1 both at 1 Hz; A0 at 128 (50 %), A1 at 26 (10 %).      */
-
-
+    /* Step C: A1 joins A0's timer at the SAME frequency (1 Hz) with a
+     * different duty. The frequency must be 1 again when we write A1,
+     * otherwise TIM2 (and A0 with it) would change speed.                   */
+    analogWriteFrequency(1);
+    analogWrite(A1, 26);
+    analogWrite(A0, 128);      /* rewrite A0 so its duty is for this period too */
 }
 
 void loop()
 {
-    /* Nothing to do here. The timers keep the LEDs going on their own.
-     * That's the point of hardware PWM: the CPU is free.                    */
 }

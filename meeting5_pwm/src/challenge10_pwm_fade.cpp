@@ -1,78 +1,53 @@
 /*
  * =============================================================================
- *  CHALLENGE 10 — A breathing LED                         (Meeting 5: PWM)
+ *  CHALLENGE 10 — SOLUTION   (A breathing LED)
  * =============================================================================
+ *  Steps A-C together: D12 fades up while A1 fades down, then they swap.
+ *  Both go through the cubed curve from Step B.
  *
- *  analogWrite()'s value is just a number, so fading is just a loop that
- *  changes it a little bit at a time. In this challenge you'll make an LED
- *  "breathe" and find out why the obvious way looks wrong.
+ *  Why cubed? Perceived brightness grows roughly like (light power)^(1/3)
+ *  for a dim LED in a normal room, so to make brightness LOOK linear, the
+ *  value has to grow like b^3. (Real displays use a "gamma" of about 2.2 for
+ *  the same reason. A cube is easy to compute and close enough.)
  *
- *  WIRING: the LED on D12 (same as Challenge 9). Step C also needs the LED you
- *  used before on A1:
+ *  To see only Step A (no curve), change curve() to "return b;".
+ *  To see only D12 (no second LED), delete the LED2_PIN lines.
  *
- *      pin --> LED long leg (+)   LED short leg (-) --> 220-330 ohm --> GND
- *
- *    STEP A:  the fade UP (0 to 255, one step at a time) is done for you. Write
- *             the fade DOWN (255 back to 0) right below it.
- *             DONE WHEN: the LED breathes in and out, about 1 second each way.
- *
- *    STEP B:  does it look even? Watch carefully. It probably seems to leap
- *             up to bright in the first half and then barely change for the
- *             rest. Your eye is not linear: it's very sensitive to dim light
- *             and hardly notices changes in bright light, so doubling the
- *             value doesn't look twice as bright.
- *             The fix: feed the fade through a curve. Fill in curve() so it
- *             returns b CUBED, scaled back to 0-255:
- *                     curve(b) = b * b * b / (255 * 255)
- *             (curve(255) must still be 255, and curve(128) = 32.)
- *             (Both of your fades already call curve(b), so you only fill in
- *             curve() once.)
- *             DONE WHEN: the fade now looks smooth and even all the way.
- *             Hint: b * b * b is at most 16,581,375. That fits in an int
- *             on this chip (32 bits), so no special types are needed.
- *
- *    STEP C:  two LEDs, opposite phase: while D12 fades up, A1 fades down.
- *             DONE WHEN: the two LEDs trade brightness smoothly: when one is
- *             at full, the other is off. (Hint: if D12 is at b, A1 is at
- *             255 - b. Put both through curve().) Add the analogWrite for
- *             LED2_PIN inside both fade loops.
- *
- *    THINK:   we call delay() hundreds of times to make this fade. What else
- *             could the CPU be doing while waiting? (The PWM itself runs in
- *             the timer hardware with no help from the CPU.)
+ *  THINK answer: it could read a button, run a sensor, talk over Serial,
+ *  anything. delay() blocks all of that, which is why Meeting 4's idea of
+ *  checking the clock instead of waiting (millis() in Arduino) matters.
  * =============================================================================
  */
 #include <Arduino.h>
 
 #define LED1_PIN   D12
-#define LED2_PIN   A1        /* Step C */
-#define STEP_MS    4         /* wait between brightness steps: 256 x 4 ms = about 1 s */
+#define LED2_PIN   A1
+#define STEP_MS    4
 
-/* STEP B: bend the fade to match how eyes see brightness. */
+/* Step B: b cubed, scaled back to 0-255. 255 * 255 * 255 = 16,581,375 fits
+ * in a 32-bit int. */
 static int curve(int b)
 {
-    /* TODO: return b cubed, scaled back to 0-255 (see Step B).
-     *       For now, just pass the value through.                           */
-    return b;
+    return (b * b * b) / (255 * 255);
 }
 
 void setup()
 {
-    /* Nothing to set up: analogWrite() prepares the pin the first time you
-     * use it. */
 }
 
 void loop()
 {
-    /* Fade UP: b goes 0, 1, 2 ... 255. (Done for you.) */
+    /* Fade LED1 up (and LED2 down). */
     for (int b = 0; b <= 255; b++) {
         analogWrite(LED1_PIN, curve(b));
+        analogWrite(LED2_PIN, curve(255 - b));
         delay(STEP_MS);
-        /* STEP C: TODO: also analogWrite(LED2_PIN, curve(255 - b)); */
     }
 
-    /* STEP A: TODO: fade DOWN. Copy the loop above, but count down:
-     *     start b at 255, keep going while b >= 0, and use b-- each time.
-     * Don't forget Step C's LED2 line in this loop too.                      */
-
+    /* Fade LED1 down (and LED2 up). */
+    for (int b = 255; b >= 0; b--) {
+        analogWrite(LED1_PIN, curve(b));
+        analogWrite(LED2_PIN, curve(255 - b));
+        delay(STEP_MS);
+    }
 }
