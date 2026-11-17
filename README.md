@@ -3,6 +3,7 @@
 Starter code for the **Embedded Systems Design Club** bare-metal challenges on the
 **Nucleo-F446RE** board. No Arduino, no HAL: you write straight to the chip's registers,
 and every file that runs on the chip is in this repo.
+(Meeting 5, in the `meeting5_pwm/` folder, is the one exception: it uses the Arduino framework on purpose.)
 
 Works the same on **Windows, macOS and Linux**.
 
@@ -105,6 +106,24 @@ file and start, nothing to copy from an earlier challenge.
 
 All the TIM1 registers are already defined in `include/esdc_registers.h`.
 
+### Meeting 5: PWM with Arduino (`meeting5_pwm/`)
+
+PWM (pulse width modulation) is how a pin that can only be ON or OFF makes an LED look dim, or fade:
+switch it on and off so fast that your eye only sees the average. Today is about the **idea**, so we
+leave the registers behind and use the **Arduino framework** (`analogWrite()` and friends).
+
+This is its **own PlatformIO project** in the `meeting5_pwm/` folder. In VS Code, use
+**File → Open Folder…** and pick `meeting5_pwm` (not the main repo folder). Its first build downloads the
+Arduino framework and takes several minutes, so do one **before** the meeting. Everything else
+(wiring, pin table, cheat sheet, troubleshooting) is in [`meeting5_pwm/README.md`](meeting5_pwm/README.md).
+
+| # | File (in `meeting5_pwm/src/`) | You'll learn | Wiring |
+|---|---|---|---|
+| 9 | `challenge9_pwm_basics.cpp` | Duty cycle = brightness, frequency = flicker | LED on D12 |
+| 10 | `challenge10_pwm_fade.cpp` | Fading with a loop; why a straight ramp looks uneven | LEDs on D12, A1 |
+| 11 | `challenge11_pwm_timers.cpp` | One frequency per timer, one duty per channel | LEDs on A0, A1, D12 |
+| 12 | `challenge12_pwm_scanner.cpp` | **Stretch:** a scanner light with a fading tail | LEDs on A0, A1, D12 |
+
 ### Timer cheat sheet
 
 ```
@@ -161,10 +180,10 @@ The Nucleo's headers are labelled like an Arduino (A0, D12...). Here's what thos
 
 | Board label | STM32 pin | Used in |
 |---|---|---|
-| A0 | PA0 | Challenges 1, 3, 7, 8 |
-| A1 | PA1 | Challenges 1, 3, 7, 8 |
+| A0 | PA0 | Challenges 1, 3, 7, 8, 11, 12 |
+| A1 | PA1 | Challenges 1, 3, 7, 8, 10, 11, 12 |
 | A2 | **PA4** (not PA2!) | Challenges 1, 3, 7, 8 |
-| D12 | PA6 | Challenges 1, 3, 7, 8 |
+| D12 | PA6 | Challenges 1, 3, 7, 8, 9, 10, 11, 12 |
 | D4 | PB5 | Challenge 2 |
 | D9 | PC7 | Challenge 2 |
 | D13 / green LED LD2 | PA5 | Everything |
@@ -190,6 +209,7 @@ esdc-stm32f446-starter/
 │   ├── esdc_helpers.c        # delay_ms() as a simple busy-wait loop
 │   └── startup_stm32f446.c   # what runs before main() (worth reading later!)
 ├── slides/                   # meeting slide decks (PDF)
+├── meeting5_pwm/             # Meeting 5: its own PlatformIO project (Arduino framework, analogWrite)
 ├── linker/stm32f446re.ld     # where code and variables go in memory
 └── Makefile                  # optional: build without PlatformIO
 ```
@@ -266,6 +286,7 @@ All free from st.com (search the code):
   Challenge 3's solution includes the "Stop the light" game, and Challenge 4's includes the reaction timer.
   Challenges 5–8 solutions include each stretch (`tim1_delay_us()`, long delays, speed control,
   random target).
+  Meeting 5 (`meeting5_pwm/`) solutions: same file names as the starters, on the `solutions` branch.
 - **No PlatformIO?** If you have `arm-none-eabi-gcc` and OpenOCD installed:
   `make CHALLENGE=1` builds, `make CHALLENGE=1 flash` uploads.
 - Every push is build-checked by GitHub Actions (see the **Actions** tab).
